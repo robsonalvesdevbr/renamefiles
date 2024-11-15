@@ -23,8 +23,22 @@ func normalizeUnicode(input string) string {
 	}, norm.NFKD.String(input))
 }
 
+// toTitleCaseWithSeparator converts a string to Title Case while maintaining separators.
+func toTitleCaseWithSeparator(input, separator string) string {
+	if separator == "" {
+		separator = " "
+	}
+	words := strings.Split(input, separator)
+	for i, word := range words {
+		if len(word) > 0 {
+			words[i] = strings.ToUpper(string(word[0])) + strings.ToLower(word[1:])
+		}
+	}
+	return strings.Join(words, separator)
+}
+
 // sanitizeFileName removes spaces and non-visible characters while keeping special characters.
-func sanitizeFileName(name string, separator string, useUnderscore bool, removeUnderscore bool, oldSeparator string, newSeparator string) string {
+func sanitizeFileName(name string, separator string, useUnderscore bool, removeUnderscore bool, oldSeparator string, newSeparator string, toTitleCase bool) string {
 	// Normalize Unicode to remove stylization.
 	sanitized := normalizeUnicode(name)
 
@@ -51,11 +65,15 @@ func sanitizeFileName(name string, separator string, useUnderscore bool, removeU
 		sanitized = invalidChars.ReplaceAllString(sanitized, "")
 	}
 
+	if toTitleCase {
+		sanitized = toTitleCaseWithSeparator(sanitized, separator)
+	}
+
 	return sanitized
 }
 
 // renameFiles iterates through the files in the directory and renames them.
-func renameFiles(dir string, separator string, useUnderscore bool, removeUnderscore bool, oldSeparator string, newSeparator string) error {
+func renameFiles(dir string, separator string, useUnderscore bool, removeUnderscore bool, oldSeparator string, newSeparator string, toTitleCase bool) error {
 	return filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -63,7 +81,7 @@ func renameFiles(dir string, separator string, useUnderscore bool, removeUndersc
 
 		if !d.IsDir() {
 			oldName := d.Name()
-			newName := sanitizeFileName(oldName, separator, useUnderscore, removeUnderscore, oldSeparator, newSeparator)
+			newName := sanitizeFileName(oldName, separator, useUnderscore, removeUnderscore, oldSeparator, newSeparator, toTitleCase)
 
 			if oldName != newName {
 				oldPath := filepath.Join(dir, oldName)
@@ -87,6 +105,7 @@ func main() {
 	separator := flag.String("separator", "", "Character to use as a separator (e.g., _ or -)")
 	oldSeparator := flag.String("old-separator", "", "Character to be replaced in file names")
 	newSeparator := flag.String("new-separator", "", "Character to replace the old separator in file names")
+	toTitleCase := flag.Bool("title-case", false, "Convert file names to Title Case (capitalize first letter of each word)")
 	flag.Parse()
 
 	// Get the current working directory.
@@ -99,7 +118,7 @@ func main() {
 	fmt.Printf("Current directory: %s\n", dir)
 
 	// Rename files in the current directory.
-	if err := renameFiles(dir, *separator, *useUnderscore, *removeUnderscore, *oldSeparator, *newSeparator); err != nil {
+	if err := renameFiles(dir, *separator, *useUnderscore, *removeUnderscore, *oldSeparator, *newSeparator, *toTitleCase); err != nil {
 		fmt.Printf("Error renaming files: %v\n", err)
 		os.Exit(1)
 	}
