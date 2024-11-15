@@ -80,6 +80,14 @@ func main() {
 	removeUnderscore := flag.Bool("remove-underscore", false, "Replace underscores with spaces in file names")
 	flag.Parse()
 
+	// positionalArgs := flag.Args()
+	// fmt.Printf("Positional arguments: %v\n", positionalArgs)
+
+	// flag.Usage = func() {
+	// 	fmt.Fprintf(os.Stderr, "Usage: %s [options]\n", os.Args[0])
+	// 	flag.PrintDefaults()
+	// }
+
 	// Get the current working directory.
 	dir, err := os.Getwd()
 	if err != nil {
