@@ -24,7 +24,7 @@ func normalizeUnicode(input string) string {
 }
 
 // sanitizeFileName removes spaces and non-visible characters while keeping special characters.
-func sanitizeFileName(name string, separator string, useUnderscore bool, removeUnderscore bool) string {
+func sanitizeFileName(name string, separator string, useUnderscore bool, removeUnderscore bool, oldSeparator string, newSeparator string) string {
 	// Normalize Unicode to remove stylization.
 	sanitized := normalizeUnicode(name)
 
@@ -34,6 +34,10 @@ func sanitizeFileName(name string, separator string, useUnderscore bool, removeU
 		sanitized = strings.ReplaceAll(sanitized, "_", " ")
 	} else if separator != "" {
 		sanitized = strings.ReplaceAll(sanitized, " ", separator)
+	}
+
+	if oldSeparator != "" && newSeparator != "" {
+		sanitized = strings.ReplaceAll(sanitized, oldSeparator, newSeparator)
 	}
 
 	// Trim extra spaces.
@@ -51,7 +55,7 @@ func sanitizeFileName(name string, separator string, useUnderscore bool, removeU
 }
 
 // renameFiles iterates through the files in the directory and renames them.
-func renameFiles(dir string, separator string, useUnderscore bool, removeUnderscore bool) error {
+func renameFiles(dir string, separator string, useUnderscore bool, removeUnderscore bool, oldSeparator string, newSeparator string) error {
 	return filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -59,7 +63,7 @@ func renameFiles(dir string, separator string, useUnderscore bool, removeUndersc
 
 		if !d.IsDir() {
 			oldName := d.Name()
-			newName := sanitizeFileName(oldName, separator, useUnderscore, removeUnderscore)
+			newName := sanitizeFileName(oldName, separator, useUnderscore, removeUnderscore, oldSeparator, newSeparator)
 
 			if oldName != newName {
 				oldPath := filepath.Join(dir, oldName)
@@ -81,6 +85,8 @@ func main() {
 	useUnderscore := flag.Bool("underscore", false, "Replace spaces with underscores in file names")
 	removeUnderscore := flag.Bool("remove-underscore", false, "Replace underscores with spaces in file names")
 	separator := flag.String("separator", "", "Character to use as a separator (e.g., _ or -)")
+	oldSeparator := flag.String("old-separator", "", "Character to be replaced in file names")
+	newSeparator := flag.String("new-separator", "", "Character to replace the old separator in file names")
 	flag.Parse()
 
 	// Get the current working directory.
@@ -93,7 +99,7 @@ func main() {
 	fmt.Printf("Current directory: %s\n", dir)
 
 	// Rename files in the current directory.
-	if err := renameFiles(dir, *separator, *useUnderscore, *removeUnderscore); err != nil {
+	if err := renameFiles(dir, *separator, *useUnderscore, *removeUnderscore, *oldSeparator, *newSeparator); err != nil {
 		fmt.Printf("Error renaming files: %v\n", err)
 		os.Exit(1)
 	}
