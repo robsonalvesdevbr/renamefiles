@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"io/fs"
 	"os"
@@ -10,6 +9,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/spf13/cobra"
 	"golang.org/x/text/unicode/norm"
 )
 
@@ -45,7 +45,6 @@ func toTitleCaseWithSeparator(input, separator string) string {
 func sanitizeFileName(name string, separator string, useUnderscore bool, removeUnderscore bool, oldSeparator string, newSeparator string, toTitleCase bool) string {
 	// Normalize Unicode to remove stylization.
 	sanitized := normalizeUnicode(name)
-
 	if useUnderscore {
 		sanitized = strings.ReplaceAll(sanitized, " ", "_")
 	} else if removeUnderscore {
@@ -53,14 +52,11 @@ func sanitizeFileName(name string, separator string, useUnderscore bool, removeU
 	} else if separator != "" {
 		sanitized = strings.ReplaceAll(sanitized, " ", separator)
 	}
-
 	if oldSeparator != "" && newSeparator != "" {
 		sanitized = strings.ReplaceAll(sanitized, oldSeparator, newSeparator)
 	}
-
 	// Trim extra spaces.
 	sanitized = strings.TrimSpace(sanitized)
-
 	// Replace invalid characters with the separator using regex (excluding special characters).
 	invalidChars := regexp.MustCompile(`[^ -~ -ÿ\p{L}\p{N}_.-]`)
 	if separator != "" {
@@ -68,11 +64,9 @@ func sanitizeFileName(name string, separator string, useUnderscore bool, removeU
 	} else {
 		sanitized = invalidChars.ReplaceAllString(sanitized, "")
 	}
-
 	if toTitleCase {
 		sanitized = toTitleCaseWithSeparator(sanitized, separator)
 	}
-
 	return sanitized
 }
 
@@ -82,26 +76,15 @@ func renameFiles(dir string, separator string, useUnderscore bool, removeUndersc
 		if err != nil {
 			return err
 		}
-
 		if !d.IsDir() {
 			oldName := d.Name()
 			newName := sanitizeFileName(oldName, separator, useUnderscore, removeUnderscore, oldSeparator, newSeparator, toTitleCase)
-
 			if oldName != newName {
 				oldPath := path
 				newPath := filepath.Join(filepath.Dir(path), newName)
-
-				// Check if the new path already exists to avoid overwriting files.
-				if _, err := os.Stat(newPath); err == nil {
-					fmt.Printf("Erro: O arquivo %s já existe.
-", newName)
-					return nil
-				}
-
 				if err := os.Rename(oldPath, newPath); err != nil {
 					return fmt.Errorf("failed to rename file %s to %s: %w", oldName, newName, err)
 				}
-
 				fmt.Printf("Renamed: %s -> %s\n", oldName, newName)
 			}
 		}
@@ -110,33 +93,45 @@ func renameFiles(dir string, separator string, useUnderscore bool, removeUndersc
 }
 
 func main() {
-	// Parse command-line flags.
-	useUnderscore := flag.Bool("underscore", false, "Replace spaces with underscores in file names")
-	removeUnderscore := flag.Bool("remove-underscore", false, "Replace underscores with spaces in file names")
-	separator := flag.String("separator", "", "Character to use as a separator (e.g., _ or -)")
-	oldSeparator := flag.String("old-separator", "", "Character to be replaced in file names")
-	newSeparator := flag.String("new-separator", "", "Character to replace the old separator in file names")
-	toTitleCase := flag.Bool("title-case", false, "Convert file names to Title Case (capitalize first letter of each word)")
-	flag.Parse()
+	var useUnderscore bool
+	var removeUnderscore bool
+	var separator string
+	var oldSeparator string
+	var newSeparator string
+	var toTitleCase bool
 
-	// Ensure conflicting flags are not used simultaneously.
-	if *useUnderscore && *removeUnderscore {
-		fmt.Println("Erro: Não é possível usar 'underscore' e 'remove-underscore' ao mesmo tempo.")
-		os.Exit(1)
+	var rootCmd = &cobra.Command{
+		Use:   "renamefiles",
+		Short: "RenameFiles is a tool to rename files in a directory",
+		Run: func(cmd *cobra.Command, args []string) {
+			// Ensure conflicting flags are not used simultaneously.
+			if useUnderscore && removeUnderscore {
+				fmt.Println("Erro: Não é possível usar 'underscore' e 'remove-underscore' ao mesmo tempo.")
+				os.Exit(1)
+			}
+			// Get the current working directory.
+			dir, err := os.Getwd()
+			if err != nil {
+				fmt.Printf("Error getting current directory: %v\n", err)
+				os.Exit(1)
+			}
+			// Rename files in the directory.
+			if err := renameFiles(dir, separator, useUnderscore, removeUnderscore, oldSeparator, newSeparator, toTitleCase); err != nil {
+				fmt.Printf("Error renaming files: %v\n", err)
+				os.Exit(1)
+			}
+		},
 	}
 
-	// Get the current working directory.
-	dir, err := os.Getwd()
-	if err != nil {
-		fmt.Printf("Error getting current directory: %v\n", err)
-		os.Exit(1)
-	}
+	rootCmd.Flags().BoolVar(&useUnderscore, "underscore", false, "Replace spaces with underscores in file names")
+	rootCmd.Flags().BoolVar(&removeUnderscore, "remove-underscore", false, "Replace underscores with spaces in file names")
+	rootCmd.Flags().StringVar(&separator, "separator", "", "Character to use as a separator (e.g., _ or -)")
+	rootCmd.Flags().StringVar(&oldSeparator, "old-separator", "", "Character to be replaced in file names")
+	rootCmd.Flags().StringVar(&newSeparator, "new-separator", "", "Character to replace the old separator in file names")
+	rootCmd.Flags().BoolVar(&toTitleCase, "title-case", false, "Convert file names to Title Case (capitalize first letter of each word)")
 
-	fmt.Printf("Current directory: %s\n", dir)
-
-	// Rename files in the current directory.
-	if err := renameFiles(dir, *separator, *useUnderscore, *removeUnderscore, *oldSeparator, *newSeparator, *toTitleCase); err != nil {
-		fmt.Printf("Error renaming files: %v\n", err)
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Println(err)
 		os.Exit(1)
 	}
 }
