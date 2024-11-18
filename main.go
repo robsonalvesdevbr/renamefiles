@@ -13,6 +13,97 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
+// FileRenamer interface defines the contract for renaming files.
+type FileRenamer interface {
+	RenameFiles(dir string, dryRun bool) error
+}
+
+// FileRenamerImpl implements the FileRenamer interface.
+type FileRenamerImpl struct {
+	separator        string
+	useUnderscore    bool
+	removeUnderscore bool
+	oldSeparator     string
+	newSeparator     string
+	toTitleCase      bool
+	includeTimestamp bool
+}
+
+// NewFileRenamer creates a new instance of FileRenamerImpl.
+func NewFileRenamer(separator string, useUnderscore, removeUnderscore bool, oldSeparator, newSeparator string, toTitleCase, includeTimestamp bool) FileRenamer {
+	return &FileRenamerImpl{
+		separator:        separator,
+		useUnderscore:    useUnderscore,
+		removeUnderscore: removeUnderscore,
+		oldSeparator:     oldSeparator,
+		newSeparator:     newSeparator,
+		toTitleCase:      toTitleCase,
+		includeTimestamp: includeTimestamp,
+	}
+}
+
+// RenameFiles iterates through the files in the directory and renames them.
+func (fr *FileRenamerImpl) RenameFiles(dir string, dryRun bool) error {
+	return filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() {
+			oldName := d.Name()
+			info, err := d.Info()
+			if err != nil {
+				return err
+			}
+			timestamp := info.ModTime().Format("20060102_150405")
+			newName := fr.sanitizeFileName(oldName, timestamp)
+			if oldName != newName {
+				oldPath := path
+				newPath := filepath.Join(filepath.Dir(path), newName)
+				if dryRun {
+					fmt.Printf("Dry run: %s -> %s\n", oldName, newName)
+				} else {
+					if err := os.Rename(oldPath, newPath); err != nil {
+						return fmt.Errorf("failed to rename file %s to %s: %w", oldName, newName, err)
+					}
+					fmt.Printf("Renamed: %s -> %s\n", oldName, newName)
+				}
+			}
+		}
+		return nil
+	})
+}
+
+// sanitizeFileName removes spaces and non-visible characters while keeping special characters.
+func (fr *FileRenamerImpl) sanitizeFileName(name, timestamp string) string {
+	sanitized := normalizeUnicode(name)
+	if fr.useUnderscore {
+		sanitized = strings.ReplaceAll(sanitized, " ", "_")
+	} else if fr.removeUnderscore {
+		sanitized = strings.ReplaceAll(sanitized, "_", " ")
+	} else if fr.separator != "" {
+		sanitized = strings.ReplaceAll(sanitized, " ", fr.separator)
+	}
+	if fr.oldSeparator != "" && fr.newSeparator != "" {
+		sanitized = strings.ReplaceAll(sanitized, fr.oldSeparator, fr.newSeparator)
+	}
+	sanitized = strings.TrimSpace(sanitized)
+	invalidChars := regexp.MustCompile(`[^ -~ -ÿ\p{L}\p{N}_.-]`)
+	if fr.separator != "" {
+		sanitized = invalidChars.ReplaceAllString(sanitized, fr.separator)
+	} else {
+		sanitized = invalidChars.ReplaceAllString(sanitized, "")
+	}
+	if fr.toTitleCase {
+		sanitized = toTitleCaseWithSeparator(sanitized, fr.separator)
+	}
+	if fr.includeTimestamp {
+		ext := filepath.Ext(sanitized)
+		nameWithoutExt := strings.TrimSuffix(sanitized, ext)
+		sanitized = fmt.Sprintf("%s_%s%s", timestamp, nameWithoutExt, ext)
+	}
+	return sanitized
+}
+
 // normalizeUnicode removes diacritics and converts styled characters to their basic form.
 func normalizeUnicode(input string) string {
 	return strings.Map(func(r rune) rune {
@@ -41,71 +132,6 @@ func toTitleCaseWithSeparator(input, separator string) string {
 	return strings.Join(words, separator)
 }
 
-// sanitizeFileName removes spaces and non-visible characters while keeping special characters.
-func sanitizeFileName(name string, separator string, useUnderscore bool, removeUnderscore bool, oldSeparator string, newSeparator string, toTitleCase bool, includeTimestamp bool, timestamp string) string {
-	// Normalize Unicode to remove stylization.
-	sanitized := normalizeUnicode(name)
-	if useUnderscore {
-		sanitized = strings.ReplaceAll(sanitized, " ", "_")
-	} else if removeUnderscore {
-		sanitized = strings.ReplaceAll(sanitized, "_", " ")
-	} else if separator != "" {
-		sanitized = strings.ReplaceAll(sanitized, " ", separator)
-	}
-	if oldSeparator != "" && newSeparator != "" {
-		sanitized = strings.ReplaceAll(sanitized, oldSeparator, newSeparator)
-	}
-	// Trim extra spaces.
-	sanitized = strings.TrimSpace(sanitized)
-	// Replace invalid characters with the separator using regex (excluding special characters).
-	invalidChars := regexp.MustCompile(`[^ -~ -ÿ\p{L}\p{N}_.-]`)
-	if separator != "" {
-		sanitized = invalidChars.ReplaceAllString(sanitized, separator)
-	} else {
-		sanitized = invalidChars.ReplaceAllString(sanitized, "")
-	}
-	if toTitleCase {
-		sanitized = toTitleCaseWithSeparator(sanitized, separator)
-	}
-	if includeTimestamp {
-		ext := filepath.Ext(sanitized)
-		nameWithoutExt := strings.TrimSuffix(sanitized, ext)
-		sanitized = fmt.Sprintf("%s_%s%s", timestamp, nameWithoutExt, ext)
-	}
-	return sanitized
-}
-
-// renameFiles iterates through the files in the directory and renames them.
-func renameFiles(dir string, separator string, useUnderscore bool, removeUnderscore bool, oldSeparator string, newSeparator string, toTitleCase bool, includeTimestamp bool, dryRun bool) error {
-	return filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if !d.IsDir() {
-			oldName := d.Name()
-			info, err := d.Info()
-			if err != nil {
-				return err
-			}
-			timestamp := info.ModTime().Format("20060102_150405")
-			newName := sanitizeFileName(oldName, separator, useUnderscore, removeUnderscore, oldSeparator, newSeparator, toTitleCase, includeTimestamp, timestamp)
-			if oldName != newName {
-				oldPath := path
-				newPath := filepath.Join(filepath.Dir(path), newName)
-				if dryRun {
-					fmt.Printf("Dry run: %s -> %s\n", oldName, newName)
-				} else {
-					if err := os.Rename(oldPath, newPath); err != nil {
-						return fmt.Errorf("failed to rename file %s to %s: %w", oldName, newName, err)
-					}
-					fmt.Printf("Renamed: %s -> %s\n", oldName, newName)
-				}
-			}
-		}
-		return nil
-	})
-}
-
 func main() {
 	var useUnderscore bool
 	var removeUnderscore bool
@@ -132,7 +158,8 @@ func main() {
 				os.Exit(1)
 			}
 			// Rename files in the directory.
-			if err := renameFiles(dir, separator, useUnderscore, removeUnderscore, oldSeparator, newSeparator, toTitleCase, includeTimestamp, dryRun); err != nil {
+			fileRenamer := NewFileRenamer(separator, useUnderscore, removeUnderscore, oldSeparator, newSeparator, toTitleCase, includeTimestamp)
+			if err := fileRenamer.RenameFiles(dir, dryRun); err != nil {
 				fmt.Printf("Error renaming files: %v\n", err)
 				os.Exit(1)
 			}
