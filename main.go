@@ -31,7 +31,11 @@ func toTitleCaseWithSeparator(input, separator string) string {
 	words := strings.Split(input, separator)
 	for i, word := range words {
 		if len(word) > 0 {
-			words[i] = strings.ToUpper(string(word[0])) + strings.ToLower(word[1:])
+			if len(word) > 1 {
+				words[i] = strings.ToUpper(string(word[0])) + strings.ToLower(word[1:])
+			} else {
+				words[i] = strings.ToUpper(word)
+			}
 		}
 	}
 	return strings.Join(words, separator)
@@ -84,8 +88,15 @@ func renameFiles(dir string, separator string, useUnderscore bool, removeUndersc
 			newName := sanitizeFileName(oldName, separator, useUnderscore, removeUnderscore, oldSeparator, newSeparator, toTitleCase)
 
 			if oldName != newName {
-				oldPath := filepath.Join(dir, oldName)
-				newPath := filepath.Join(dir, newName)
+				oldPath := path
+				newPath := filepath.Join(filepath.Dir(path), newName)
+
+				// Check if the new path already exists to avoid overwriting files.
+				if _, err := os.Stat(newPath); err == nil {
+					fmt.Printf("Erro: O arquivo %s já existe.
+", newName)
+					return nil
+				}
 
 				if err := os.Rename(oldPath, newPath); err != nil {
 					return fmt.Errorf("failed to rename file %s to %s: %w", oldName, newName, err)
@@ -107,6 +118,12 @@ func main() {
 	newSeparator := flag.String("new-separator", "", "Character to replace the old separator in file names")
 	toTitleCase := flag.Bool("title-case", false, "Convert file names to Title Case (capitalize first letter of each word)")
 	flag.Parse()
+
+	// Ensure conflicting flags are not used simultaneously.
+	if *useUnderscore && *removeUnderscore {
+		fmt.Println("Erro: Não é possível usar 'underscore' e 'remove-underscore' ao mesmo tempo.")
+		os.Exit(1)
+	}
 
 	// Get the current working directory.
 	dir, err := os.Getwd()
