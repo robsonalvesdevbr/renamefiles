@@ -1,115 +1,87 @@
+Aqui está o README em formato Markdown para o seu projeto `RenameFiles`, estilo GitHub, com a lista de parâmetros organizada em uma tabela:
+
+````markdown
 # RenameFiles
 
-RenameFiles is a Go-based utility for renaming files in a directory, offering various options for normalizing file names, including converting spaces to underscores, removing diacritics, and changing letter cases., including converting spaces to underscores, removing diacritics, and changing letter cases.
+`RenameFiles` é uma ferramenta de linha de comando para renomear arquivos em um diretório, fornecendo flexibilidade para modificar os nomes dos arquivos de várias maneiras, como substituir caracteres, adicionar timestamps e mudar para título capitalizado.
 
-## Features
+## Como Usar
 
-- Normalize Unicode characters by removing diacritics.
-- Replace spaces with custom separators (e.g., underscores or dashes).
-- Convert file names to Title Case.
-- Customize the way separators are used in file names.
+Para rodar o comando, utilize:
 
-## How It Works
-
-RenameFiles scans the current directory and renames files based on the given options. You can apply different transformations to clean up or standardize the naming format of your files.. You can apply different transformations to clean up or standardize the naming format of your files.
-
-## Command-Line Flags
-
-The utility supports the following command-line flags to customize the behavior of the renaming process:
-
-| Flag                                              | Description                                                                                                     |
-| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `-underscore`                                     | Replace spaces with underscores in file names.                                                                  |
-| `-remove-underscore`                              | Replace underscores with spaces in file names.                                                                  |
-| `-separator=<separator>`                          | Specify a character to use as a separator (e.g., `_` or `-`). This replaces spaces with the provided separator. |
-| `-old-separator=<old>` and `-new-separator=<new>` | Replace the old separator character with a new one in file names.                                               |
-| `-title-case`                                     | Convert file names to Title Case (capitalize the first letter of each word).                                    |
-
-> **Note**: You cannot use `-underscore` and `-remove-underscore` simultaneously. The tool will exit with an error if this occurs.
-
-## Usage
-
-To use the tool, compile it and run it in the desired directory where your files are located. Here are a few examples:
-
-### Replace Spaces with Underscores
-
+```sh
+renamefiles [flags]
 ```
-$ go run main.go -underscore
-```
+````
 
-This command replaces all spaces in file names with underscores (`_`).
+## Exemplos
 
-### Replace Underscores with Spaces
+- Renomear arquivos no diretório atual substituindo espaços por underscores:
 
-```
-$ go run main.go -remove-underscore
-```
+  ```sh
+  renamefiles --underscore
+  ```
 
-This command replaces all underscores in file names with spaces.
+- Renomear arquivos convertendo o nome para Title Case:
 
-### Use a Custom Separator
+  ```sh
+  renamefiles --title-case
+  ```
 
-```
-$ go run main.go -separator=-
-```
+- Executar uma simulação (dry-run) sem realmente renomear os arquivos:
 
-This command replaces all spaces in file names with hyphens (`-`).
+  ```sh
+  renamefiles --dry-run
+  ```
 
-### Change a Specific Separator
+## Parâmetros
 
-```
-$ go run main.go -old-separator=_ -new-separator=-
+| Parâmetro             | Tipo     | Descrição                                                                                     |
+| --------------------- | -------- | --------------------------------------------------------------------------------------------- |
+| `--underscore`        | Booleano | Substitui espaços por underscores (`_`) nos nomes dos arquivos.                               |
+| `--remove-underscore` | Booleano | Substitui underscores (`_`) por espaços nos nomes dos arquivos.                               |
+| `--separator`         | String   | Caractere a ser usado como separador (ex.: `_` ou `-`).                                       |
+| `--old-separator`     | String   | Caractere a ser substituído nos nomes dos arquivos.                                           |
+| `--new-separator`     | String   | Caractere que substituirá o `old-separator` nos nomes dos arquivos.                           |
+| `--title-case`        | Booleano | Converte os nomes dos arquivos para Title Case (primeira letra de cada palavra em maiúsculo). |
+| `--include-timestamp` | Booleano | Inclui o timestamp de criação do arquivo no nome do arquivo.                                  |
+| `--dry-run`           | Booleano | Realiza uma simulação sem renomear os arquivos. Apenas exibe o que seria feito.               |
+
+## Instalação
+
+Para usar o comando `renamefiles`, primeiro você deve instalar a ferramenta. Siga os passos abaixo para compilar e instalar:
+
+```sh
+go build -o renamefiles
 ```
 
-This command replaces all underscores (`_`) in file names with hyphens (`-`).
+Em seguida, adicione o binário compilado ao seu PATH ou execute diretamente.
 
-### Convert File Names to Title Case
+## Dependências
 
-```
-$ go run main.go -title-case
-```
+Este projeto depende dos seguintes pacotes:
 
-This command capitalizes the first letter of each word in the file names.
+- [Cobra](https://github.com/spf13/cobra) - Para gerenciar os comandos CLI.
+- [x/text/unicode/norm](https://pkg.go.dev/golang.org/x/text/unicode/norm) - Para normalização de caracteres Unicode.
 
-## Example Output
+## Observações
 
-After running the tool, you will see output like the following:
+- Certifique-se de não usar simultaneamente as flags `--underscore` e `--remove-underscore`, pois são opções conflitantes e não funcionarão juntas.
+- Quando renomear os arquivos, a ferramenta aplicará todas as opções fornecidas de forma sequencial, afetando o resultado final.
 
-```
-Current directory: /path/to/your/directory
-Renamed: old_file_name.txt -> Old_File_Name.txt
-Renamed: another-file.txt -> Another_File.txt
-```
+## Licença
 
-## Error Handling
+Este projeto é distribuído sob a licença MIT. Veja o arquivo [LICENSE](./LICENSE) para mais informações.
 
-- The tool will skip renaming if the new file name already exists, to avoid overwriting existing files.
-- If conflicting flags (`-underscore` and `-remove-underscore`) are used, the program will exit with an appropriate error message.
+## Contribuições
 
-## Building the Tool
+Contribuições são bem-vindas! Sinta-se à vontade para abrir problemas ou enviar pull requests.
 
-To build the executable, use the following command:
+## Contato
+
+Se você tiver alguma dúvida ou sugestão, pode entrar em contato comigo através do meu [site pessoal](https://www.robsonalves.dev.br).
 
 ```
-$ go build -o renamefiles main.go
+
+Este README fornece uma descrição clara sobre o funcionamento do seu programa, os parâmetros disponíveis (organizados em uma tabela) e exemplos de uso. Isso ajuda a garantir que qualquer pessoa que leia o README entenda como utilizar o `RenameFiles` e suas várias funcionalidades.
 ```
-
-This will create an executable named `renamefiles` that you can run in any directory.
-
-## Running the Tool
-
-Navigate to the directory with the files you want to rename, then run:
-
-```
-$ ./renamefiles <flags>
-```
-
-Replace `<flags>` with the desired options as explained above.
-
-## Dependencies
-
-This project relies on the `golang.org/x/text/unicode/norm` package for Unicode normalization.
-
-## License
-
-This project is licensed under the MIT License. Feel free to use and modify it as needed.
