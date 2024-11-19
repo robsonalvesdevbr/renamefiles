@@ -87,7 +87,7 @@ func (fr *FileRenamerImpl) sanitizeFileName(name, timestamp string) string {
 		sanitized = strings.ReplaceAll(sanitized, fr.oldSeparator, fr.newSeparator)
 	}
 	sanitized = strings.TrimSpace(sanitized)
-	invalidChars := regexp.MustCompile(`[^ -~ -ÿ\p{L}\p{N}_.-]`)
+	invalidChars := regexp.MustCompile(`[^ -~\xa0-\xff\p{L}\p{N}_.-]`)
 	if fr.separator != "" {
 		sanitized = invalidChars.ReplaceAllString(sanitized, fr.separator)
 	} else {
@@ -96,11 +96,17 @@ func (fr *FileRenamerImpl) sanitizeFileName(name, timestamp string) string {
 	if fr.toTitleCase {
 		sanitized = toTitleCaseWithSeparator(sanitized, fr.separator)
 	}
+
+	// Verifica se o nome já contém o timestamp
 	if fr.includeTimestamp {
 		ext := filepath.Ext(sanitized)
 		nameWithoutExt := strings.TrimSuffix(sanitized, ext)
-		sanitized = fmt.Sprintf("%s_%s%s", timestamp, nameWithoutExt, ext)
+		timestampPattern := regexp.MustCompile(`^\d{8}_\d{6}_`)
+		if !timestampPattern.MatchString(nameWithoutExt) {
+			sanitized = fmt.Sprintf("%s_%s%s", timestamp, nameWithoutExt, ext)
+		}
 	}
+
 	return sanitized
 }
 
