@@ -1,4 +1,4 @@
-module renamefiles
+module github.com/robsonalvesdevbr/renamefiles
 
 go 1.23.3
 
